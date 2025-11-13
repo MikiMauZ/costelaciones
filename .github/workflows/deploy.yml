@@ -1,35 +1,56 @@
+# Flujo simple para desplegar una app Vite en GitHub Pages
 name: Deploy Vite app to GitHub Pages
 
 on:
+  # Se ejecuta cuando haces push a main
   push:
-    branches: [ "main" ]
+    branches: ['main']
+  # Permite lanzarlo a mano desde la pestaña Actions
   workflow_dispatch:
 
+# Permisos para poder desplegar en Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/upload-pages-artifact@v2
-        with:
-          path: dist
+# Solo un despliegue a la vez
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
 
+jobs:
   deploy:
-    needs: build
-    runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy-pages.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
     steps:
-      - id: deploy-pages
-        uses: actions/deploy-pages@v2
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar proyecto
+        run: npm run build
+
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto
+        uses: actions/upload-pages-artifact@v4
+        with:
+          # carpeta de salida de Vite
+          path: './dist'
+
+      - name: Desplegar a GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
